@@ -83,7 +83,7 @@ cp -r ../gs ../pics $ROOTFS/home/radxa/SourceCode/SBC-GS
 # chroot $ROOTFS /bin/bash
 echo_blue "Run build script\nchroot $ROOTFS /bin/bash"
 cp build.sh $ROOTFS/root/build.sh
-chroot $ROOTFS /root/build.sh
+#chroot $ROOTFS /root/build.sh
 rm $ROOTFS/root/build.sh
 
 # add release info

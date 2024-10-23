@@ -85,6 +85,7 @@ if [ $(find /lib/modules -name ${DRIVE_NAME}* |  wc -l) == 0 ];then
 	sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefile
 	sed -i "s^dkms build -m \${DRV_NAME} -v \${DRV_VERSION}^dkms build -m \${DRV_NAME} -v \${DRV_VERSION} -k \$(ls /lib/modules | tail -n 1)^" dkms-install.sh
 	sed -i "s^dkms install -m \${DRV_NAME} -v \${DRV_VERSION}^dkms install -m \${DRV_NAME} -v \${DRV_VERSION} -k \$(ls /lib/modules | tail -n 1)^" dkms-install.sh
+	./dkms-install.sh
 	popd
 else 
 	echo "${DRIVE_NAME} is already installed"
@@ -114,6 +115,7 @@ if [ $(find /lib/modules -name ${DRIVE_NAME}* |  wc -l) == 0 ];then
 	sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefile
 	sed -i "s^dkms build -m \${DRV_NAME} -v \${DRV_VERSION}^dkms build -m \${DRV_NAME} -v \${DRV_VERSION} -k \$(ls /lib/modules | tail -n 1)^" dkms-install.sh
 	sed -i "s^dkms install -m \${DRV_NAME} -v \${DRV_VERSION}^dkms install -m \${DRV_NAME} -v \${DRV_VERSION} -k \$(ls /lib/modules | tail -n 1)^" dkms-install.sh
+	./dkms-install.sh
 	popd
 else 
 	echo "${DRIVE_NAME} is already installed"
@@ -203,7 +205,7 @@ pushd SBC-GS/gs
 popd
 
 # install useful packages
-apt -y install lrzsz net-tools socat netcat exfatprogs ifstat fbi minicom bridge-utils
+apt -y install lrzsz net-tools socat netcat exfatprogs ifstat fbi minicom bridge-utils console-setup psmisc ethtool drm-info libdrm-tests proxychains4
 fi
 case $BOARD in
 	radxa-zero3)
