@@ -2,26 +2,89 @@
 
 set -e
 set -x
+echo_red()   { printf "\033[1;31m$*\033[m\n"; }
+echo_green() { printf "\033[1;32m$*\033[m\n"; }
+echo_blue()  { printf "\033[1;34m$*\033[m\n"; }
+
+cd "$(dirname "$0")"
+
 source config
+
+# Checking free space
+diskFreeSpace=$(df -P . | tail -1 | awk '{print $4}')
+diskNewSize=16 # GB
+diskFreeSpaceGB=$(( $diskFreeSpace/1048576 - 4 )) # 4GB for .xz
+if [ $diskFreeSpaceGB -lt $diskNewSize ];then
+	echo "Error: not enough free space. Not enough $(( $diskNewSize - $diskFreeSpaceGB ))G"
+	exit 1
+fi
 
 apt update
 apt install -y qemu-user-static gdisk
 
-IMAGE=$(basename "$IMAGE_URL" .xz)
-if [ -f ${IMAGE} ]; then
-	echo "Image file already exist just use it."
-elif [ -f ${IMAGE}.xz ]; then
-	echo "Image xz file already exist just use it."
-elif [[ "$IMAGE_URL" == /* ]]; then
-	cp $IMAGE_URL .
+IMAGE=$(ls | grep $(basename "$IMAGE_URL" ${IMAGE_URL: -3}) | grep .img$ ) || true # Search basename.img
+if [ -f "$IMAGE" ]; then
+	echo "Warning: Image '${IMAGE}' file already exist just use it."
 else
-	wget -q "$IMAGE_URL" --show-progress
+	# URL or Local file
+	if [[ "$IMAGE_URL" == http* ]]; then # if URL
+		BASENAME=$(basename "$IMAGE_URL")
+
+		# check if the file has been downloaded before
+		if [ -f "$BASENAME" ]; then 
+			echo "Warning: Archive file '$BASENAME' already exist just use it"
+		else
+			wget -q "$IMAGE_URL"
+		fi
+		IMAGE_ARCHIVE=$BASENAME
+	else
+		if [[ "$IMAGE_URL" == *.img ]]; then # if .img
+			cp $IMAGE_URL .
+			IMAGE=$(basename "$IMAGE_URL")
+		else
+			IMAGE_ARCHIVE=$IMAGE_URL
+		fi
+	fi
+
+	if [ -n "$IMAGE_ARCHIVE" ]; then # if archive
+		# archive unpack
+		if file $IMAGE_ARCHIVE | grep -q "XZ compressed"; then
+			unxz -vf -T0 "${IMAGE_ARCHIVE}"
+		elif file $IMAGE_ARCHIVE | grep -q "7-zip archive data" ; then
+			7z x "${IMAGE_ARCHIVE}" -y -sdel
+		else
+			echo_red "Exception: Unknown archive type '${IMAGE_ARCHIVE}'"
+			exit 1
+		fi
+		rm -f *.sha
+		IMAGE=$(ls | grep $(basename "$IMAGE_ARCHIVE" ${IMAGE_ARCHIVE: -3}) | grep .img$) || true # Search image
+		if [ $(echo $IMAGE | wc -l) -gt 1 ]; then
+			echo_red "Exception: There are more than one files $IMAGE_ARCHIVE"
+			echo "$IMAGE"
+			exit 1
+		fi
+	fi
 fi
 
-[ -f ${IMAGE}.xz ] && unxz -v -T0 ${IMAGE}.xz
+if [ ! -f "$IMAGE"  ]; then
+	echo_red "Image '$IMAGE' not found"
+	exit 1
+fi
+
+# Unmounts previously mounted devices
+$(mount | grep -q "build/${ROOTFS}") && umount -R $ROOTFS
+
+# Disabling losetup for previously created
+losetupList=$(losetup | grep "$IMAGE") || true
+if [ -n "$losetupList" ]; then
+	while IFS= read -r line
+	do
+		losetup -d $(echo $line | cut -d ' ' -f 1)
+	done < <(printf '%s\n' "$losetupList")
+fi
 
 # expand disk size
-truncate -s 16G $IMAGE
+truncate -s ${diskNewSize}G $IMAGE
 
 LOOPDEV=$(losetup -P --show -f $IMAGE)
 ROOT_PART=$(sgdisk -p $LOOPDEV | grep "rootfs" | tail -n 1 | tr -s ' ' | cut -d ' ' -f 2)
