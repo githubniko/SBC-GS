@@ -130,8 +130,8 @@ sed -i '/disable_service systemd-networkd/a disable_service dnsmasq' /config/bef
 # enable services
 sed -i "s/disable_service systemd-networkd/# disable_service systemd-networkd/" /config/before.txt
 sed -i "s/disable_service ssh/# disable_service ssh/" /config/before.txt
-sed -i "s/disable_service nmbd/# disable_service smbd/" /config/before.txt
-sed -i "s/disable_service smbd/# disable_service nmbd/" /config/before.txt
+sed -i "s/disable_service nmbd/# disable_service nmbd/" /config/before.txt
+sed -i "s/disable_service smbd/# disable_service smbd/" /config/before.txt
 
 # disable auto extend root partition and rootfs
 apt purge -y cloud-initramfs-growroot
@@ -142,6 +142,11 @@ cat > /etc/NetworkManager/conf.d/00-gs-unmanaged.conf << EOF
 [keyfile]
 unmanaged-devices=interface-name:eth0;interface-name:br0;interface-name:usb0;interface-name:dummy0;interface-name:radxa0;interface-name:wlx*
 EOF
+
+# set root password to root
+echo "root:root" | chpasswd
+# permit root login over ssh
+sed -i "s/#PermitRootLogin.*/PermitRootLogin yes/" /etc/ssh/sshd_config
 
 rm -rf /home/radxa/SourceCode
 rm /etc/resolv.conf
